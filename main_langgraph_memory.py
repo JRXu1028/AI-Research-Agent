@@ -16,6 +16,7 @@ from src.tools import get_all_tools, create_tools_map
 from src.state import create_initial_state
 from src.rag import initialize_rag_system
 from src.langgraph_agent import run_langgraph_agent_with_memory
+from langgraph.checkpoint.memory import MemorySaver
 
 
 def print_separator():
@@ -31,21 +32,25 @@ def main():
     print_separator()
     
     # 1. 初始化 LLM
-    print("\n[1/4] 初始化 LLM...")
+    print("\n[1/5] 初始化 LLM...")
     llm = create_llm()
     print("      ✅ LLM 初始化完成")
     
     # 2. 初始化 RAG 系统
-    print("\n[2/4] 初始化 RAG 系统...")
+    print("\n[2/5] 初始化 RAG 系统...")
     initialize_rag_system(force_reload=False)
     
     # 3. 获取工具
-    print("\n[3/4] 加载工具...")
+    print("\n[3/5] 加载工具...")
     tools = get_all_tools()
     tools_map = create_tools_map(tools)
     print(f"      ✅ 已加载 {len(tools)} 个工具: {', '.join(tools_map.keys())}")
     
-    print("\n[4/4] LangGraph Agent 准备就绪!")
+    print("\n[4/5] 初始化 Memory...")
+    checkpointer = MemorySaver()
+    print("      ✅ Memory 已启用（内存存储）")
+
+    print("\n[5/5] LangGraph Agent 准备就绪!")
     print_separator()
     
     # 4. 多轮对话演示
@@ -102,14 +107,15 @@ def main():
             # 运行 Agent（带 Memory）
             # 关键：使用相同的 thread_id，Agent 会自动加载历史对话
             final_state = run_langgraph_agent_with_memory(
-                initial_state, 
-                llm, 
-                tools_map, 
-                thread_id=thread_id
+                initial_state,
+                llm,
+                tools_map,
+                thread_id=thread_id,
+                checkpointer=checkpointer
             )
-            
+
             # 打印结果
-            answer = final_state.get('final_answer', '无答案') # 从最终状态中取出 final_answer  如果没有这个字段，就返回默认值 "无答案"
+            answer = final_state.get('final_answer', '无答案')
             print(f"\n🤖 Agent: {answer}")
             
             # 显示对话历史长度
@@ -165,7 +171,8 @@ def main():
                 state,
                 llm,
                 tools_map,
-                thread_id=interactive_thread_id
+                thread_id=interactive_thread_id,
+                checkpointer=checkpointer
             )
             
             # 显示回答

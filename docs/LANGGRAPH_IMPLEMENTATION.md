@@ -36,8 +36,11 @@ main_langgraph.py         # LangGraph Agent 演示程序
 
 **新增依赖**：
 ```txt
-langgraph>=0.0.20         # LangGraph 框架
+langgraph>=0.0.20                  # LangGraph 框架
+langgraph-checkpoint-postgres>=1.0 # PostgreSQL Checkpointer
+redis[hiredis]>=5.0.0              # Redis（Hybrid Memory）
 ```
+
 
 **为什么需要这个包**：
 - 提供状态图（StateGraph）构建能力
@@ -121,13 +124,17 @@ def should_continue(state):
     pass
 
 # 3. 图构建
-def create_langgraph_agent(llm, tools_map):
-    """创建 LangGraph Agent"""
+def create_langgraph_agent(llm, tools_map, checkpointer=None):
+    """创建 LangGraph Agent，支持外部注入 Checkpointer"""
     pass
 
 # 4. 便捷函数
 def run_langgraph_agent(state, llm, tools_map):
-    """运行 LangGraph Agent"""
+    """运行 LangGraph Agent（无 Memory）"""
+    pass
+
+def run_langgraph_agent_with_memory(state, llm, tools_map, thread_id, checkpointer=None):
+    """运行 LangGraph Agent（带 Memory）"""
     pass
 ```
 
@@ -593,26 +600,32 @@ agent_with_context = partial(agent_node, llm=llm, tools_map=tools_map)
 
 ## 八、扩展和优化
 
-### 1. 添加对话历史（Memory）
+### 1. Memory 系统（三级存储）
+
+项目已实现三级 Memory 存储系统（见 `src/memory.py`）：
 
 ```python
-from langgraph.checkpoint import MemorySaver
+from src.memory import create_checkpointer
 
-# 创建 memory
-memory = MemorySaver()
+# 根据 MEMORY_STORE_TYPE 配置自动选择：
+# - memory:   MemorySaver（内存，开发环境）
+# - postgres: PostgresSaver（PostgreSQL 持久化）
+# - hybrid:   PostgresSaver + Redis 缓存（生产推荐）
+checkpointer = await create_checkpointer()
 
-# 编译时添加 checkpointer
-app = workflow.compile(checkpointer=memory)
+app = workflow.compile(checkpointer=checkpointer)
 
-# 运行时指定 thread_id
 config = {"configurable": {"thread_id": "user123"}}
 final_state = app.invoke(initial_state, config)
 ```
 
 **作用**：
-- 保存对话历史
-- 支持多轮对话
-- 可恢复中断的对话
+- 对话历史持久化到 PostgreSQL
+- 服务重启后对话不丢失
+- Redis 缓存层加速高频读写
+- 通过 `MEMORY_STORE_TYPE` 环境变量一键切换
+
+> 详见 [docs/MEMORY_IMPLEMENTATION.md](MEMORY_IMPLEMENTATION.md)
 
 ### 2. 添加流式输出
 
@@ -854,7 +867,7 @@ def agent_node(state, llm, tools_map):
 
 ### 下一步
 
-- 添加对话历史（Memory）
+- 对话历史持久化（Memory：内存 / PostgreSQL / Hybrid）
 - 实现流式输出
 - 添加人工审核节点
 - 实现多 Agent 协作

@@ -28,16 +28,43 @@ class Config:
     POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "")
     
+    # Redis 配置
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+    REDIS_DB = os.getenv("REDIS_DB", "0")
+    REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", "")
+    
     # 向量数据库类型：chroma 或 postgres
     VECTOR_STORE_TYPE = os.getenv("VECTOR_STORE_TYPE", "chroma")
     
+    # Memory 存储类型：memory, postgres, hybrid
+    # memory: 内存存储（开发环境，重启丢失）
+    # postgres: PostgreSQL 持久化（生产环境）
+    # hybrid: PostgreSQL + Redis（推荐，性能最佳）
+    MEMORY_STORE_TYPE = os.getenv("MEMORY_STORE_TYPE", "memory")
+    
     @classmethod
     def get_postgres_connection_string(cls):
-        """获取 PostgreSQL 连接字符串"""
+        """获取 PostgreSQL 连接字符串（用于向量数据库）"""
         return (
             f"postgresql+psycopg://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}"
             f"@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
         )
+    
+    @classmethod
+    def get_postgres_async_connection_string(cls):
+        """获取 PostgreSQL 异步连接字符串（用于LangGraph checkpointer）"""
+        return (
+            f"postgresql+psycopg://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}"
+            f"@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
+        )
+    
+    @classmethod
+    def get_redis_url(cls):
+        """获取 Redis 连接URL"""
+        if cls.REDIS_PASSWORD:
+            return f"redis://:{cls.REDIS_PASSWORD}@{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"
+        return f"redis://{cls.REDIS_HOST}:{cls.REDIS_PORT}/{cls.REDIS_DB}"
     
     @classmethod
     def validate(cls):

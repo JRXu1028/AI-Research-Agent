@@ -17,14 +17,13 @@ from src.tools import get_all_tools, create_tools_map
 from src.state import create_initial_state
 from src.rag import initialize_rag_system
 from src.langgraph_agent import run_langgraph_agent_with_memory
+from src.memory import create_checkpointer
 
 
 # ============================================================
-# 1. 全局变量
+# 1. 全局变量（已废弃，使用 app.state）
 # ============================================================
-
-llm = None
-tools_map = None
+# 注意：现在使用 app.state 存储，不再使用全局变量
 
 
 # ============================================================
@@ -34,35 +33,59 @@ tools_map = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
-    global llm, tools_map
     
     print("\n" + "=" * 70)
     print("🚀 正在启动 AI Research Agent 服务...")
     print("=" * 70)
     
-    # 初始化 LLM
-    print("\n[1/3] 初始化 LLM...")
-    llm = create_llm()
-    print("      ✅ LLM 初始化完成")
-    
-    # 初始化 RAG 系统
-    print("\n[2/3] 初始化 RAG 系统...")
-    initialize_rag_system(force_reload=False)
-    
-    # 加载工具
-    print("\n[3/3] 加载工具...")
-    tools = get_all_tools()
-    tools_map = create_tools_map(tools)
-    print(f"      ✅ 已加载 {len(tools)} 个工具: {', '.join(tools_map.keys())}")
-    
-    print("\n" + "=" * 70)
-    print("✅ AI Research Agent 服务启动成功!")
-    print("   访问地址: http://localhost:8000")
-    print("=" * 70 + "\n")
+    try:
+        # 初始化 LLM
+        print("\n[1/4] 初始化 LLM...")
+        llm = create_llm()
+        app.state.llm = llm
+        print("      ✅ LLM 初始化完成")
+        
+        # 初始化 RAG 系统
+        print("\n[2/4] 初始化 RAG 系统...")
+        initialize_rag_system(force_reload=False)
+        print("      ✅ RAG 系统初始化完成")
+        
+        # 初始化 Memory 系统（PostgreSQL + Redis）
+        print("\n[3/4] 初始化 Memory 系统...")
+        checkpointer = await create_checkpointer()
+        app.state.checkpointer = checkpointer
+        
+        # 加载工具
+        print("\n[4/4] 加载工具...")
+        tools = get_all_tools()
+        tools_map = create_tools_map(tools)
+        app.state.tools_map = tools_map
+        print(f"      ✅ 已加载 {len(tools)} 个工具: {', '.join(tools_map.keys())}")
+        
+        print("\n" + "=" * 70)
+        print("✅ AI Research Agent 服务启动成功!")
+        print("   访问地址: http://localhost:8000")
+        print("=" * 70 + "\n")
+        
+    except Exception as e:
+        print(f"\n❌ 服务启动失败: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     
     yield
     
     print("\n🛑 服务关闭中...")
+    
+    # 清理资源
+    try:
+        if hasattr(app.state, 'checkpointer'):
+            checkpointer = app.state.checkpointer
+            if hasattr(checkpointer, 'redis_client'):
+                await checkpointer.redis_client.close()
+                print("   ✅ Redis 连接已关闭")
+    except Exception as e:
+        print(f"   ⚠️  资源清理失败: {e}")
 
 
 # ============================================================
@@ -127,15 +150,22 @@ async def chat(request: ChatRequest):
         
         print(f"\n💬 收到消息 [thread_id={request.thread_id}]: {request.message}")
         
+        # 从 app.state 获取组件
+        llm = app.state.llm
+        tools_map = app.state.tools_map
+        checkpointer = app.state.checkpointer
+        
         # 创建初始状态
         initial_state = create_initial_state(request.message)
         
         # 调用 Agent（带 Memory）
+        # 每个 thread_id 独立存储，避免会话冲突
         final_state = run_langgraph_agent_with_memory(
             initial_state,
             llm,
             tools_map,
-            thread_id=request.thread_id
+            thread_id=request.thread_id,
+            checkpointer=checkpointer  # 使用 PostgreSQL + Redis 存储
         )
         
         # 提取答案

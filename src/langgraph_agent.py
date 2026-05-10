@@ -5,7 +5,6 @@ LangGraph Agent 模块
 """
 
 from langgraph.graph import StateGraph, END
-from langgraph.checkpoint.memory import MemorySaver
 from functools import partial
 from .state import AgentState
 from .agent import call_model, execute_tools
@@ -85,14 +84,14 @@ def should_continue(state: AgentState) -> str:
 # 3. LangGraph 构建（标准 ReAct 模式 + Memory 支持）
 # ============================================================
 
-def create_langgraph_agent(llm, tools_map, with_memory=False):
+def create_langgraph_agent(llm, tools_map, checkpointer=None):
     """
     创建 LangGraph Agent（标准 ReAct 模式 + Memory 支持）
     
     Args:
         llm: 语言模型
         tools_map: 工具映射字典
-        with_memory: 是否启用 Memory（对话历史持久化）
+        checkpointer: Checkpointer 实例（None 表示不使用 Memory）
     
     流程：
     START → agent (LLM 推理)
@@ -149,8 +148,8 @@ def create_langgraph_agent(llm, tools_map, with_memory=False):
     # 含义：从 "tools" 节点出来之后，进入 "agent" 节点
     workflow.add_edge("tools", "agent")
     
-    if with_memory:
-        # 使用 MemorySaver 作为 checkpointer
+    if checkpointer:
+        # 使用传入的 checkpointer（支持 PostgreSQL、Redis 等）
         # 这会自动保存每一步的状态，支持对话历史
         """
         👉 启用 Memory 后：
@@ -163,8 +162,7 @@ def create_langgraph_agent(llm, tools_map, with_memory=False):
         ✔ 支持多轮对话
         ✔ 每个 thread_id 是一个会话   config = {"configurable": {"thread_id": thread_id}}
         """
-        memory = MemorySaver()
-        app = workflow.compile(checkpointer=memory)
+        app = workflow.compile(checkpointer=checkpointer)
         print("   ✅ Memory 已启用（支持多轮对话）")
     else:
         # 编译图：把定义的流程图 "编译" 成一个可执行对象    之后就可以：app.invoke(initial_state) 来运行整个 Agent
@@ -189,8 +187,8 @@ def run_langgraph_agent(state: AgentState, llm, tools_map: dict) -> AgentState:
     Returns:
         最终状态
     """
-    # 创建 LangGraph Agent
-    agent = create_langgraph_agent(llm, tools_map, with_memory=False)
+    # 创建 LangGraph Agent（不使用 Memory）
+    agent = create_langgraph_agent(llm, tools_map, checkpointer=None)
     
     # 运行
     # 执行这个 Agent，从 state 开始，按照图的流程自动运行：
@@ -212,23 +210,29 @@ def run_langgraph_agent(state: AgentState, llm, tools_map: dict) -> AgentState:
     return final_state
 
 
-def run_langgraph_agent_with_memory(state: AgentState, llm, tools_map: dict, thread_id: str):
+def run_langgraph_agent_with_memory(state: AgentState, llm, tools_map: dict, thread_id: str, checkpointer=None):
     """
     运行 LangGraph Agent（带 Memory）
-    
+
     Args:
         state: 初始状态
         llm: 语言模型
         tools_map: 工具映射字典
         thread_id: 对话线程 ID（用于区分不同的对话会话）
-    
+        checkpointer: Checkpointer 实例，None 则使用内存存储
+
     Returns:
         最终状态
     """
+    if checkpointer is None:
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
+
     # 创建 LangGraph Agent（启用 Memory）
-    agent = create_langgraph_agent(llm, tools_map, with_memory=True)
+    agent = create_langgraph_agent(llm, tools_map, checkpointer=checkpointer)
     
     # 配置：指定 thread_id 来标识对话会话
+    # 每个 thread_id 独立存储，避免会话冲突
     config = {"configurable": {"thread_id": thread_id}}
     
     # 运行（会自动保存和加载历史状态）
@@ -236,8 +240,8 @@ def run_langgraph_agent_with_memory(state: AgentState, llm, tools_map: dict, thr
     👉 和普通 invoke 的区别：
         会自动：
         
-        读取历史
-        保存新状态
+        读取历史（从 PostgreSQL/Redis）
+        保存新状态（到 PostgreSQL/Redis）
         恢复上下文
     """
     final_state = agent.invoke(state, config)

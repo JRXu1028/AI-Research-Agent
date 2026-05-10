@@ -2,29 +2,33 @@
 
 ## 概述
 
-RAG（Retrieval-Augmented Generation，检索增强生成）是一种结合了信息检索和文本生成的 AI 技术。本文档详细说明了如何在现有 Agent 系统中集成 RAG 功能。
+RAG（Retrieval-Augmented Generation，检索增强生成）是一种结合了信息检索和文本生成的 AI 技术。本项目实现了双向量数据库后端的 RAG 系统，支持 Chroma（本地开发）和 PostgreSQL + pgvector（生产环境）两种后端，通过环境变量一键切换。
 
 ---
 
-## 一、改动总览
+## 一、架构总览
 
-### 1. 新增文件（4个）
+### 模块组成
 
 ```
 src/
 ├── embeddings.py       # Embedding 模型管理
-├── vector_store.py     # 向量数据库管理
+├── vector_store.py     # Chroma 向量数据库（本地开发）
+├── vector_store_pg.py  # PostgreSQL + pgvector 向量数据库（生产环境）
 ├── knowledge_base.py   # 知识库数据定义
-└── rag.py             # RAG 系统核心逻辑
+└── rag.py             # RAG 系统核心逻辑（自动选择后端）
 ```
 
-### 2. 修改文件（3个）
+### 双后端设计
+
+通过 `VECTOR_STORE_TYPE` 环境变量控制：
 
 ```
-- requirements.txt     # 添加新依赖
-- src/tools.py        # 添加 knowledge_search 工具
-- main.py             # 集成 RAG 初始化
+VECTOR_STORE_TYPE=chroma    → VectorStore (Chroma, 文件持久化)
+VECTOR_STORE_TYPE=postgres  → VectorStorePG (PostgreSQL + pgvector)
 ```
+
+`rag.py` 中的 `initialize_rag_system()` 根据配置自动选择后端，上层代码无需感知差异。
 
 ---
 
@@ -194,44 +198,73 @@ LangChain Documents
 
 ---
 
-### 改动 5：创建 RAG 系统（src/rag.py）
+### 改动 5：PostgreSQL + pgvector 后端（src/vector_store_pg.py）
 
-**作用**：封装 RAG 系统的核心逻辑
+**作用**：生产级向量数据库，替代 Chroma
+
+```python
+class VectorStorePG:
+    def __init__(self):
+        self.embeddings = create_embeddings()
+        self.connection_string = Config.get_postgres_connection_string()
+        self.collection_name = "knowledge_base"
+
+    def initialize(self, force_reload=False):
+        self.vectorstore = PGVector(
+            embeddings=self.embeddings,
+            collection_name=self.collection_name,
+            connection=self.connection_string,
+            use_jsonb=True,
+        )
+        # 自动检测并初始化数据
+
+    def search_with_score(self, query: str, k: int = 3):
+        return self.vectorstore.similarity_search_with_score(query, k=k)
+```
+
+**与 Chroma 版的区别**：
+
+| 特性 | Chroma | PostgreSQL + pgvector |
+|------|--------|----------------------|
+| 部署方式 | 内嵌，文件存储 | 独立数据库服务 |
+| 并发能力 | 单进程 | 多连接并发 |
+| 备份恢复 | 手动复制目录 | 标准 pg_dump/pg_restore |
+| 适用场景 | 本地开发、原型 | 生产环境、多副本 |
+
+### 改动 6：创建 RAG 系统（src/rag.py）
+
+**作用**：封装 RAG 系统的核心逻辑，自动选择向量数据库后端
 
 ```python
 class RAGSystem:
-    def __init__(self, vector_store: VectorStore):
+    def __init__(self, vector_store):
         self.vector_store = vector_store
-    
-    def retrieve(self, query: str, k: int = 3):
-        """检索相关文档"""
-        results = self.vector_store.search_with_score(query, k=k)
-        return results
 
-# 全局单例模式
-_rag_system_instance = None
+    def retrieve(self, query: str, k: int = 3):
+        return self.vector_store.search_with_score(query, k=k)
 
 def initialize_rag_system(force_reload=False):
-    """初始化全局 RAG 系统"""
+    """根据 VECTOR_STORE_TYPE 自动选择后端"""
     global _rag_system_instance
     if _rag_system_instance is None or force_reload:
+        vector_store_type = Config.VECTOR_STORE_TYPE
+        if vector_store_type == "postgres":
+            from .vector_store_pg import create_vector_store
+        else:
+            from .vector_store import create_vector_store
         vector_store = create_vector_store(force_reload=force_reload)
         _rag_system_instance = RAGSystem(vector_store)
-    return _rag_system_instance
-
-def get_rag_system():
-    """获取 RAG 系统实例"""
     return _rag_system_instance
 ```
 
 **设计模式**：
 - **单例模式**: 全局只有一个 RAG 系统实例
+- **策略模式**: 通过配置切换向量数据库后端
 - **延迟初始化**: 只在需要时才初始化
-- **全局访问**: 通过 `get_rag_system()` 在任何地方访问
 
 ---
 
-### 改动 6：添加知识检索工具（src/tools.py）
+### 改动 7：添加知识检索工具（src/tools.py）
 
 **新增工具**：
 
@@ -290,7 +323,7 @@ def get_all_tools():
 
 ---
 
-### 改动 7：集成到主程序（main.py）
+### 改动 8：集成到主程序
 
 **新增初始化步骤**：
 

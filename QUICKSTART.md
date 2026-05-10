@@ -1,158 +1,171 @@
 # 快速开始指南
 
-## 🚀 5分钟快速上手
+## 5 分钟快速上手
 
 ### 1. 环境准备
 
 ```bash
-# 激活虚拟环境
-conda activate AIResearch
-
-# 安装依赖（如果还没安装）
+# 安装 Python 依赖
 pip install -r requirements.txt
 ```
 
 ### 2. 配置 API 密钥
 
-编辑 `.env` 文件：
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`，填入你的 API Key：
+
 ```bash
 ECNU_API_KEY=your_api_key_here
-ECNU_BASE_URL=https://api.ecnu.edu.cn/v1
-ECNU_MODEL_NAME=gpt-4
 ```
 
-### 3. 运行测试
+### 3. 运行
 
-#### 方式 1：原版 Agent
+**Web 应用（推荐）**：
+
 ```bash
-python main.py
+# 终端 1：启动后端
+python app.py
+
+# 终端 2：启动前端
+cd frontend && npm install && npm run dev
 ```
 
-#### 方式 2：LangGraph Agent
-```bash
-python main_langgraph.py
-```
+打开浏览器访问 `http://localhost:3000`。
 
-### 4. 查看知识库
+**命令行演示**：
+
 ```bash
-python view_knowledge_base.py
+python main.py                    # 原版 Agent
+python main_langgraph.py          # LangGraph Agent
+python main_langgraph_memory.py   # Memory 多轮对话（含交互模式）
 ```
 
 ---
 
-## 📖 测试用例
+## 运行模式对比
 
-程序会自动运行以下测试：
-
-1. **计算问题**：`请帮我计算 25 加 17 等于多少？`
-   - 预期：调用 calculator 工具
-
-2. **知识查询**：`华东师范大学在哪里？有几个校区？`
-   - 预期：调用 knowledge_search 工具
-
-3. **普通对话**：`你好，今天天气怎么样？`
-   - 预期：直接回答
-
-4. **简单计算**：`123 + 456 = ?`
-   - 预期：调用 calculator 工具
-
-5. **技术问题**：`什么是 RAG 技术？`
-   - 预期：调用 knowledge_search 工具
+| 模式 | 命令 | 多轮推理 | 对话记忆 | 交互 | 适用场景 |
+|------|------|----------|----------|------|----------|
+| 原版 Agent | `main.py` | ✅ | ❌ | ❌ | 学习 Agent 基础 |
+| LangGraph | `main_langgraph.py` | ✅ | ❌ | ❌ | 学习图结构 |
+| Memory | `main_langgraph_memory.py` | ✅ | ✅ | ✅ | 完整体验 |
+| Web 应用 | `app.py` + 前端 | ✅ | ✅ | ✅ | 日常使用 |
 
 ---
 
-## 🎯 核心概念
+## 配置选项
 
-### 1. 两种实现方式
+### 向量数据库切换
 
-| 特性 | 原版 Agent | LangGraph Agent |
-|------|-----------|----------------|
-| 实现方式 | while 循环 | 图结构 |
-| 复杂度 | 简单 | 中等 |
-| 可视化 | 无 | 支持 |
-| 扩展性 | 中等 | 高 |
-| 功能 | 完全相同 | 完全相同 |
+```bash
+# 本地开发（默认，零配置）
+VECTOR_STORE_TYPE=chroma
 
-### 2. 工作流程（ReAct 模式）
-
-```
-用户提问
-  ↓
-LLM 推理
-  ↓
-需要工具？
-  ├─ 是 → 执行工具 → 回到 LLM 推理
-  └─ 否 → 返回答案
+# 生产环境（需要 PostgreSQL + pgvector）
+VECTOR_STORE_TYPE=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=ai_research_agent
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_password
 ```
 
-### 3. 可用工具
+### Memory 存储切换
 
-- `calculator(a, b)` - 计算加法
-- `knowledge_search(query)` - 搜索知识库
+```bash
+# 本地开发（默认，内存存储，重启丢失）
+MEMORY_STORE_TYPE=memory
+
+# 持久化存储
+MEMORY_STORE_TYPE=postgres
+
+# 生产推荐（PostgreSQL 持久化 + Redis 缓存加速）
+MEMORY_STORE_TYPE=hybrid
+REDIS_HOST=localhost
+REDIS_PORT=6379
+```
 
 ---
 
-## 📁 项目结构
+## 测试用例
+
+程序演示了以下典型场景：
+
+1. **计算问题**：`请帮我计算 25 加 17 等于多少？` → 调用 calculator 工具
+2. **知识查询**：`华东师范大学在哪里？有几个校区？` → 调用 knowledge_search 工具
+3. **上下文追问**：`再加上 10 呢？` → Agent 记得上一轮的 42
+4. **代词理解**：`它有几个校区？` → Agent 知道"它"指华东师范大学
+5. **长期记忆**：`我刚才问的第一个问题的答案是多少？` → Agent 回顾早期对话
+
+---
+
+## 项目结构
 
 ```
 AI Research Agent/
-├── src/                    # 核心代码
-│   ├── agent.py           # 原版 Agent
-│   ├── langgraph_agent.py # LangGraph Agent
-│   ├── tools.py           # 工具定义
-│   ├── rag.py             # RAG 系统
-│   └── ...
-├── docs/                   # 文档
-│   ├── PROJECT_STATUS.md  # 项目状态
-│   ├── CODE_REVIEW_SUMMARY.md
-│   └── ...
-├── main.py                # 原版演示
-├── main_langgraph.py      # LangGraph 演示
-└── requirements.txt       # 依赖
+├── src/                       # 核心源码
+│   ├── agent.py               # Agent 核心逻辑
+│   ├── langgraph_agent.py     # LangGraph Agent
+│   ├── memory.py              # Memory 管理（三级存储）
+│   ├── config.py              # 配置管理
+│   ├── llm.py                 # LLM 初始化
+│   ├── state.py               # 状态定义
+│   ├── tools.py               # 工具定义
+│   ├── rag.py                 # RAG 系统（双向量数据库）
+│   ├── embeddings.py          # Embedding 模型
+│   ├── vector_store.py        # Chroma 向量数据库
+│   ├── vector_store_pg.py     # PostgreSQL 向量数据库
+│   └── knowledge_base.py      # 知识库数据
+├── frontend/                  # Vue 3 前端
+│   └── src/
+│       ├── App.vue
+│       ├── main.js
+│       └── style.css
+├── docs/                      # 技术文档
+├── app.py                     # FastAPI Web 服务
+├── main.py                    # 原版 Agent 演示
+├── main_langgraph.py          # LangGraph Agent 演示
+├── main_langgraph_memory.py   # Memory 多轮对话演示
+├── view_knowledge_base.py     # 查看知识库
+├── requirements.txt
+└── .env.example
 ```
 
 ---
 
-## 🔧 常用命令
+## 常用命令
 
-### 运行程序
 ```bash
-python main.py              # 原版 Agent
-python main_langgraph.py    # LangGraph Agent
-```
+# 运行演示
+python main.py                    # 原版 Agent
+python main_langgraph.py          # LangGraph Agent
+python main_langgraph_memory.py   # Memory 多轮对话
 
-### 查看知识库
-```bash
+# Web 服务
+python app.py                     # 启动后端 API
+
+# 查看知识库
 python view_knowledge_base.py
-```
 
-### 语法检查
-```bash
+# 语法检查
 python -m py_compile src/*.py
-```
 
-### 安装依赖
-```bash
+# 安装依赖
 pip install -r requirements.txt
 ```
 
 ---
 
-## 💡 使用技巧
+## 使用技巧
 
-### 1. 修改测试问题
+### 修改测试问题
 
-编辑 `main.py` 或 `main_langgraph.py`：
+编辑对应 `main_*.py` 文件中的 `test_cases` 或 `conversations` 列表。
 
-```python
-test_cases = [
-    "你的问题1",
-    "你的问题2",
-    # ...
-]
-```
-
-### 2. 添加新工具
+### 添加新工具
 
 在 `src/tools.py` 中：
 
@@ -160,80 +173,56 @@ test_cases = [
 @tool
 def my_tool(param: str) -> str:
     """工具描述"""
-    # 实现逻辑
     return result
 
 def get_all_tools():
     return [calculator, knowledge_search, my_tool]
 ```
 
-### 3. 修改知识库
+### 扩展知识库
 
-编辑 `src/knowledge_base.py`：
+编辑 `src/knowledge_base.py`，删除 `data/chroma_db` 后重新运行（或设置 `force_reload=True`）。
 
-```python
-KNOWLEDGE_BASE = [
-    {
-        "title": "新文档标题",
-        "content": "文档内容..."
-    },
-    # ...
-]
-```
+### 调整 RAG 检索数量
 
-然后重新运行程序，会自动重建向量数据库。
-
-### 4. 调整 RAG 检索数量
-
-在 `src/tools.py` 的 `knowledge_search` 中：
-
-```python
-results = rag_system.retrieve(query, k=3)  # 改为 k=5 检索更多
-```
+在 `src/tools.py` 的 `knowledge_search` 中修改 `k` 参数值。
 
 ---
 
-## 🐛 常见问题
+## 常见问题
 
 ### Q: 运行时提示 "No module named 'xxx'"
 
-**A**: 安装缺失的依赖
 ```bash
-pip install xxx
+pip install -r requirements.txt
 ```
 
 ### Q: API 调用失败
 
-**A**: 检查 `.env` 文件中的 API 密钥是否正确
+检查 `.env` 文件中的 `ECNU_API_KEY` 是否正确。
 
 ### Q: 知识库为空
 
-**A**: 删除 `data/chroma_db` 文件夹，重新运行程序
+删除 `data/chroma_db` 文件夹，重新运行程序（PostgreSQL 模式使用 `force_reload=True`）。
 
-### Q: 程序卡住不动
+### Q: PostgreSQL 连接失败
 
-**A**: 检查网络连接，确保可以访问 API
+检查 PostgreSQL 服务是否运行，以及 `.env` 中的连接信息是否正确。
 
----
+### Q: Memory 数据丢失
 
-## 📚 进阶阅读
-
-- `docs/PROJECT_STATUS.md` - 项目完整状态
-- `docs/CODE_REVIEW_SUMMARY.md` - 代码审查总结
-- `docs/LANGGRAPH_MIGRATION.md` - LangGraph 迁移指南
-- `docs/RAG_IMPLEMENTATION.md` - RAG 实现文档
+- `memory` 模式重启即丢失，这是正常的
+- 需要持久化请切换到 `postgres` 或 `hybrid` 模式
 
 ---
 
-## ✅ 验证安装
-
-运行以下命令验证环境：
+## 验证安装
 
 ```bash
 # 1. 检查 Python 版本
-python --version  # 应该是 3.8+
+python --version  # 需要 3.9+
 
-# 2. 检查依赖
+# 2. 检查关键依赖
 pip list | grep langchain
 pip list | grep chromadb
 
@@ -241,37 +230,26 @@ pip list | grep chromadb
 python main.py
 ```
 
-如果看到类似输出，说明安装成功：
+预期输出：
 
 ```
 ============================================================
 AI Research Agent - 启动中...
 ============================================================
-[1/4] 初始化 LLM...
-      LLM 初始化完成
+[1/5] 初始化 LLM...
+      ✅ LLM 初始化完成
 [2/5] 初始化 RAG 系统...
-      RAG 系统初始化完成
+      ✅ 知识库初始化完成
 ...
 ```
 
 ---
 
-## 🎉 开始使用
+## 进阶阅读
 
-现在你可以：
-
-1. ✅ 运行演示程序
-2. ✅ 修改测试问题
-3. ✅ 添加新工具
-4. ✅ 扩展知识库
-5. ✅ 部署到生产环境
-
-**祝使用愉快！** 🚀
-
----
-
-## 📞 获取帮助
-
-- 查看文档：`docs/` 目录
-- 查看代码：`src/` 目录
-- 运行示例：`main.py` 或 `main_langgraph.py`
+- [README.md](README.md) — 项目总览
+- [DEPLOYMENT.md](DEPLOYMENT.md) — 生产部署指南
+- [docs/RAG_IMPLEMENTATION.md](docs/RAG_IMPLEMENTATION.md) — RAG 系统详解
+- [docs/LANGGRAPH_IMPLEMENTATION.md](docs/LANGGRAPH_IMPLEMENTATION.md) — LangGraph Agent 详解
+- [docs/MEMORY_IMPLEMENTATION.md](docs/MEMORY_IMPLEMENTATION.md) — Memory 系统详解
+- [docs/FUTURE_IMPROVEMENTS.md](docs/FUTURE_IMPROVEMENTS.md) — 未来改进方向

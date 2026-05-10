@@ -2,91 +2,108 @@
 
 ## 概述
 
-本文档说明如何在 LangGraph Agent 中添加 Memory 功能，实现多轮对话和上下文记忆。
+本文档说明 LangGraph Agent 的 Memory 系统架构，包含三级存储后端：内存（开发）、PostgreSQL（持久化）、PostgreSQL + Redis（Hybrid，生产推荐）。核心模块 `src/memory.py` 封装了后端选择逻辑，通过 `MEMORY_STORE_TYPE` 环境变量一键切换。
 
 ---
 
-## 一、改动总览
+## 一、架构总览
 
-### 1. 修改文件（1个）
+### 模块组成
 
 ```
 src/
-└── langgraph_agent.py    # 添加 Memory 支持
+├── memory.py              # Memory 后端工厂（核心新增）
+│   └── create_checkpointer() → MemorySaver / PostgresSaver / Hybrid
+├── langgraph_agent.py     # LangGraph Agent（接受外部 checkpointer）
+│   ├── create_langgraph_agent(llm, tools_map, checkpointer=None)
+│   └── run_langgraph_agent_with_memory(state, llm, tools_map, thread_id, checkpointer)
+└── config.py              # 配置管理（MEMORY_STORE_TYPE + Redis + PostgreSQL）
 ```
 
-### 2. 新增文件（2个）
+### 三级存储后端
 
-```
-main_langgraph_memory.py           # 多轮对话演示程序
-docs/MEMORY_IMPLEMENTATION.md      # 本文档
+| 模式 | 后端 | 持久化 | 适用场景 |
+|------|------|--------|----------|
+| `memory` | MemorySaver（内存） | ❌ 重启丢失 | 本地开发、调试 |
+| `postgres` | PostgresSaver | ✅ | 单机生产部署 |
+| `hybrid` | PostgresSaver + Redis 缓存 | ✅ | 生产推荐（最佳性能） |
+
+通过 `.env` 配置切换：
+
+```bash
+MEMORY_STORE_TYPE=memory      # 本地开发
+MEMORY_STORE_TYPE=postgres    # 持久化
+MEMORY_STORE_TYPE=hybrid      # 生产推荐
 ```
 
 ---
 
-## 二、详细改动说明
+## 二、核心实现
 
-### 改动 1：添加 Memory 支持（src/langgraph_agent.py）
+### 改动 1：Memory 后端工厂（src/memory.py）
 
-#### 新增导入
+`create_checkpointer()` 根据配置创建对应的 Checkpointer：
 
 ```python
-from langgraph.checkpoint.memory import MemorySaver
+async def create_checkpointer():
+    store_type = Config.MEMORY_STORE_TYPE
+
+    if store_type == "memory":
+        from langgraph.checkpoint.memory import MemorySaver
+        return MemorySaver()
+
+    elif store_type == "postgres":
+        from langgraph_checkpoint_postgres import PostgresSaver
+        checkpointer = PostgresSaver.from_conn_string(conn_string)
+        await checkpointer.setup()
+        return checkpointer
+
+    elif store_type == "hybrid":
+        # PostgreSQL 持久化 + Redis 缓存加速
+        checkpointer = PostgresSaver.from_conn_string(conn_string)
+        await checkpointer.setup()
+        redis_client = redis.from_url(redis_url)
+        checkpointer.redis_client = redis_client
+        return checkpointer
 ```
 
-**作用**：
-- `MemorySaver` 是 LangGraph 提供的内存检查点保存器
-- 用于在内存中保存对话历史状态
+### 改动 2：LangGraph Agent 支持 Checkpointer 注入（src/langgraph_agent.py）
 
-#### 修改 `create_langgraph_agent` 函数
+使用 `checkpointer` 参数替代旧的 `with_memory` 布尔值：
 
-**修改前**：
 ```python
-def create_langgraph_agent(llm, tools_map):
-    # ...
-    app = workflow.compile()
-    return app
-```
+def create_langgraph_agent(llm, tools_map, checkpointer=None):
+    """创建 LangGraph Agent，支持外部注入 Checkpointer"""
+    workflow = StateGraph(AgentState)
+    # ... 添加节点和边 ...
 
-**修改后**：
-```python
-def create_langgraph_agent(llm, tools_map, with_memory=False):
-    # ...
-    if with_memory:
-        memory = MemorySaver()
-        app = workflow.compile(checkpointer=memory)
-        print("   ✅ Memory 已启用（支持多轮对话）")
+    if checkpointer:
+        app = workflow.compile(checkpointer=checkpointer)
     else:
         app = workflow.compile()
     return app
 ```
 
-**关键点**：
-- 添加 `with_memory` 参数控制是否启用 Memory
-- 使用 `checkpointer=memory` 参数编译图
-- Memory 会自动保存每一步的状态
+**关键改进**：
+- 从布尔参数改为接受 Checkpointer 实例，支持任意后端
+- 与 `src/memory.py` 解耦，Checkpointer 由调用方创建
 
-#### 新增 `run_langgraph_agent_with_memory` 函数
+#### `run_langgraph_agent_with_memory` 函数
 
 ```python
-def run_langgraph_agent_with_memory(state, llm, tools_map, thread_id):
-    """运行 LangGraph Agent（带 Memory）"""
-    # 创建 Agent（启用 Memory）
-    agent = create_langgraph_agent(llm, tools_map, with_memory=True)
-    
-    # 配置：指定 thread_id 来标识对话会话
+def run_langgraph_agent_with_memory(state, llm, tools_map, thread_id, checkpointer=None):
+    if checkpointer is None:
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
+
+    agent = create_langgraph_agent(llm, tools_map, checkpointer=checkpointer)
     config = {"configurable": {"thread_id": thread_id}}
-    
-    # 运行（会自动保存和加载历史状态）
     final_state = agent.invoke(state, config)
-    
     return final_state
 ```
 
-**关键点**：
-- `thread_id`：对话线程 ID，用于区分不同的对话会话
-- `config`：配置对象，传递给 `invoke` 方法
-- 相同 `thread_id` 的调用会共享对话历史
+- `thread_id`：对话线程 ID，区分不同会话
+- 未提供 checkpointer 时自动降级为 MemorySaver
 
 ---
 
@@ -128,19 +145,26 @@ run_langgraph_agent_with_memory(state2, llm, tools_map, "user_001")  # 能看到
 run_langgraph_agent_with_memory(state3, llm, tools_map, "user_002")  # 看不到 user_001 的历史
 ```
 
-### 3. MemorySaver vs 其他 Checkpointer
+### 3. Checkpointer 对比
 
 | Checkpointer | 存储位置 | 持久化 | 适用场景 |
 |--------------|---------|--------|---------|
 | MemorySaver | 内存 | ❌ 否 | 开发、测试、短期会话 |
-| SqliteSaver | SQLite 数据库 | ✅ 是 | 生产环境、长期会话 |
-| RedisSaver | Redis | ✅ 是 | 分布式系统、高并发 |
+| PostgresSaver | PostgreSQL | ✅ 是 | 单机生产、长期会话 |
+| PostgresSaver + Redis | PostgreSQL + Redis | ✅ 是 | 分布式、高并发（Hybrid） |
 
-**MemorySaver 的特点**：
-- ✅ 简单易用，无需配置
-- ✅ 性能好（内存访问）
-- ❌ 程序重启后丢失
-- ❌ 不适合生产环境
+**MemorySaver**：
+- ✅ 零配置、高性能
+- ❌ 重启丢失、不共享
+
+**PostgresSaver**：
+- ✅ 持久化、多进程共享
+- ❌ 每次读写需数据库查询
+
+**Hybrid（PostgreSQL + Redis）**：
+- ✅ 热数据从 Redis 读取，冷数据写 PostgreSQL
+- ✅ 兼顾性能与持久化
+- ❌ 需要维护 Redis 集群
 
 ---
 
@@ -331,18 +355,21 @@ Agent: 两个校区
 
 ### 1. Memory 的生命周期
 
-**MemorySaver**：
-- 只在程序运行期间有效
-- 程序重启后丢失
-- 适合开发和测试
+| 模式 | 生命周期 |
+|------|----------|
+| `memory` | 仅在程序运行期间有效，重启丢失 |
+| `postgres` | 持久化到 PostgreSQL，重启不丢失 |
+| `hybrid` | PostgreSQL 持久化 + Redis 热缓存，重启后从 PG 恢复 |
 
-**生产环境建议**：
-```python
-from langgraph.checkpoint.sqlite import SqliteSaver
+**开发/生产切换**：
+```bash
+# 开发环境（.env）
+MEMORY_STORE_TYPE=memory
 
-# 使用 SQLite 持久化
-memory = SqliteSaver.from_conn_string("checkpoints.db")
-app = workflow.compile(checkpointer=memory)
+# 生产环境（.env）
+MEMORY_STORE_TYPE=hybrid
+POSTGRES_HOST=your-pg-host
+REDIS_HOST=your-redis-host
 ```
 
 ### 2. Thread ID 管理
@@ -395,21 +422,9 @@ if message_count > 50:
 
 ## 八、扩展方向
 
-### 1. 使用 SQLite 持久化
+### 1. 对话摘要与 Token 管理
 
-```python
-from langgraph.checkpoint.sqlite import SqliteSaver
-
-def create_langgraph_agent_with_sqlite(llm, tools_map):
-    workflow = StateGraph(AgentState)
-    # ... 添加节点和边 ...
-    
-    # 使用 SQLite 持久化
-    memory = SqliteSaver.from_conn_string("./data/checkpoints.db")
-    app = workflow.compile(checkpointer=memory)
-    
-    return app
-```
+随着对话增长，需控制 Token 消耗。当前可通过切换 thread_id 重置对话，未来可加入自动摘要机制。
 
 ### 2. 添加对话摘要
 
@@ -473,33 +488,28 @@ A:
 
 ## 十、总结
 
-### 核心改动
+### 核心实现
 
-1. ✅ 添加 `MemorySaver` 支持
-2. ✅ 修改 `create_langgraph_agent` 函数
-3. ✅ 新增 `run_langgraph_agent_with_memory` 函数
-4. ✅ 创建多轮对话演示程序
+1. ✅ `src/memory.py` — Memory 后端工厂（memory / postgres / hybrid）
+2. ✅ `create_langgraph_agent` — 接受外部 checkpointer 参数
+3. ✅ `run_langgraph_agent_with_memory` — 多轮对话便捷函数
+4. ✅ 三级存储后端 — 通过 `MEMORY_STORE_TYPE` 一键切换
+5. ✅ `app.py` — FastAPI 完整集成（lifespan + checkpointer）
 
 ### 技术要点
 
-- **Checkpointer**：状态持久化机制
-- **Thread ID**：对话会话标识
-- **MemorySaver**：内存中的 Checkpointer
-- **Config**：传递配置参数
-
-### 使用场景
-
-- ✅ 多轮对话
-- ✅ 上下文引用
-- ✅ 复杂任务分解
-- ✅ 个性化对话
+- **Checkpointer**：LangGraph 状态持久化接口
+- **Thread ID**：对话会话隔离标识
+- **MemorySaver**：内存 Checkpointer（开发）
+- **PostgresSaver**：PostgreSQL Checkpointer（生产持久化）
+- **Hybrid**：PostgreSQL + Redis 双层（生产推荐）
 
 ### 下一步
 
-- 使用 SQLite 实现持久化
-- 添加对话摘要功能
-- 实现对话历史管理
-- 添加隐私保护机制
+- 对话 Token 窗口管理
+- 自动对话摘要
+- 跨会话记忆共享（用户画像）
+- 敏感信息过滤
 
 ---
 
