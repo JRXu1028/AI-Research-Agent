@@ -9,17 +9,49 @@
 pip install -r requirements.txt
 ```
 
-### 2. 配置 API 密钥
+服务器推理环境已验证组合：
+
+```text
+torch 2.8.0+cu128
+vLLM 0.10.2
+Qwen2.5-7B-Instruct
+```
+
+### 2. 配置模型
 
 ```bash
 cp .env.example .env
 ```
 
-编辑 `.env`，填入你的 API Key：
+使用 ECNU API 时，编辑 `.env`，填入你的 API Key：
 
 ```bash
+LLM_PROVIDER=ecnu
 ECNU_API_KEY=your_api_key_here
 ```
+
+使用本地 Qwen 时，先在服务器启动 vLLM OpenAI 兼容模型服务：
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+  --model ./Qwen2.5-7B-Instruct \
+  --served-model-name qwen2.5-7b-instruct \
+  --host 127.0.0.1 \
+  --port 8001 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.85
+```
+
+然后确认 `.env` 中配置为：
+
+```bash
+LLM_PROVIDER=local
+LOCAL_LLM_BASE_URL=http://localhost:8001/v1
+LOCAL_LLM_MODEL=qwen2.5-7b-instruct
+LOCAL_LLM_API_KEY=not-needed
+```
+
+> 项目后端默认使用 `8000`，本地 Qwen 服务使用 `8001`，避免端口冲突。
 
 ### 3. 运行
 
@@ -156,6 +188,7 @@ python -m py_compile src/*.py
 # 安装依赖
 pip install -r requirements.txt
 ```
+
 
 ---
 

@@ -21,12 +21,12 @@ def create_llm(temperature: float = None):
     # 校验配置是否完整（比如 API_KEY、BASE_URL 是否存在）
     # 防止在创建 LLM 时出现配置缺失问题
     Config.validate()
-    
+
     return ChatOpenAI(
-        model=Config.ECNU_MODEL,
-        openai_api_key=Config.ECNU_API_KEY,
-        openai_api_base=Config.ECNU_BASE_URL,
-        temperature=temperature if temperature is not None else Config.TEMPERATURE, # temperature 越高 → 输出越随机 temperature 越低 → 输出越稳定、确定性更强
+        model=Config.get_model_name(),
+        openai_api_key=Config.get_api_key(),
+        openai_api_base=Config.get_base_url(),
+        temperature=temperature if temperature is not None else Config.TEMPERATURE,
     )
 
 

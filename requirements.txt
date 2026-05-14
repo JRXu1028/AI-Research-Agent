@@ -7,8 +7,14 @@ langchain-core>=0.1.0
 langgraph>=0.0.20
 langgraph-checkpoint-postgres>=1.0.0
 
-# LLM 相关
+# LLM 相关（ChatOpenAI 调用 OpenAI 兼容接口）
 langchain-openai>=0.0.5
+
+# 本地 Qwen 推理服务（服务器已验证：vLLM 0.10.2 + torch 2.8.0/cu128）
+# 注意：torch 请根据服务器 CUDA/驱动单独安装，不在此处固定
+vllm==0.10.2
+transformers==4.56.1
+huggingface-hub>=0.23.0
 
 # 向量数据库
 chromadb>=0.4.0  # 本地开发

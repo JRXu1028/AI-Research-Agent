@@ -15,19 +15,35 @@
 - **Web 应用** — FastAPI 后端 + Vue 3 前端，开箱即用
 - **多轮对话** — 完整上下文记忆，支持跨轮次引用和追问
 
+## 当前状态
+
+当前已完成本地大模型接入：服务器通过 vLLM 启动 `Qwen2.5-7B-Instruct`，暴露 OpenAI 兼容接口 `http://localhost:8001/v1`；项目后端通过 `langchain-openai` 的 `ChatOpenAI` 调用该本地模型。
+
+已验证的服务器推理环境：
+
+```text
+GPU: NVIDIA GeForce RTX 4090
+torch: 2.8.0+cu128
+vLLM: 0.10.2
+model: Qwen2.5-7B-Instruct
+served model name: qwen2.5-7b-instruct
+```
+
 ## 技术栈
 
 | 层级 | 技术 |
 |------|------|
 | **LLM 框架** | LangChain, LangGraph |
-| **LLM API** | OpenAI 兼容接口（ECNU API） |
+| **本地大模型服务** | vLLM OpenAI-compatible server |
+| **LLM 模型** | Qwen2.5-7B-Instruct |
+| **LLM 调用方式** | `ChatOpenAI` → `http://localhost:8001/v1` |
 | **向量数据库** | Chroma（开发）/ PostgreSQL + pgvector（生产） |
 | **Embedding** | HuggingFace sentence-transformers (`all-MiniLM-L6-v2`) |
 | **Memory** | MemorySaver / PostgresSaver / Hybrid (PostgreSQL + Redis) |
 | **Web 后端** | FastAPI + Uvicorn |
 | **Web 前端** | Vue 3 + Vite |
 | **数据库** | PostgreSQL 15+, Redis 7+ |
-| **语言** | Python 3.9+ |
+| **语言** | Python 3.10（服务器环境） |
 
 ## 项目结构
 
@@ -100,7 +116,7 @@ pip install -r requirements.txt
 
 # 2. 配置环境变量
 cp .env.example .env
-# 编辑 .env，填入 API Key
+# 编辑 .env，使用本地 Qwen
 
 # 3. 安装前端依赖
 cd frontend && npm install && cd ..
@@ -184,7 +200,13 @@ START → agent (LLM 推理) → 有 tool_calls? → tools (执行工具) → ag
 
 ```bash
 # .env 文件
-ECNU_API_KEY=your_api_key_here          # 必填
+LLM_PROVIDER=local
+LOCAL_LLM_BASE_URL=http://localhost:8001/v1
+LOCAL_LLM_MODEL=qwen2.5-7b-instruct
+LOCAL_LLM_API_KEY=not-needed
+
+# ECNU_API_KEY 仅在 LLM_PROVIDER=ecnu 时需要
+ECNU_API_KEY=your_api_key_here
 
 # 向量数据库
 VECTOR_STORE_TYPE=chroma                # chroma | postgres
@@ -205,6 +227,33 @@ REDIS_PORT=6379
 REDIS_DB=0
 REDIS_PASSWORD=
 ```
+
+## 服务器启动本地 Qwen
+
+在一个终端中保持 vLLM 服务运行：
+
+```bash
+cd /home/ubuntu/project_xjr/AI-Research-Agent
+conda activate qwen-vllm
+
+python -m vllm.entrypoints.openai.api_server \
+  --model ./Qwen2.5-7B-Instruct \
+  --served-model-name qwen2.5-7b-instruct \
+  --host 127.0.0.1 \
+  --port 8001 \
+  --max-model-len 8192 \
+  --gpu-memory-utilization 0.85
+```
+
+另一个终端启动项目后端：
+
+```bash
+cd /home/ubuntu/project_xjr/AI-Research-Agent
+conda activate qwen-vllm
+python app.py
+```
+
+Qwen 服务根路径 `/` 返回 404 是正常的，请测试 `/v1/models` 或 `/v1/chat/completions`。
 
 ## 扩展指南
 
