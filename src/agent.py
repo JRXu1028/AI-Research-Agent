@@ -18,7 +18,7 @@ def call_model(state: AgentState, llm_with_tools) -> AgentState:
     Returns:
         更新后的状态
     """
-    print(f"\n🤖 调用模型...")
+    print("\n调用模型...")
     
     # 从状态中获取消息
     messages = state["messages"]
@@ -52,10 +52,10 @@ def call_model(state: AgentState, llm_with_tools) -> AgentState:
     """
     # 检查是否有工具调用
     if response.tool_calls:
-        print(f"🤔 模型决定: 需要调用 {len(response.tool_calls)} 个工具")
+        print(f"模型决定: 需要调用 {len(response.tool_calls)} 个工具")
         state["tool_calls"] = response.tool_calls
     else:
-        print(f"🤔 模型决定: 不需要工具，直接回答")
+        print("模型决定: 不需要工具，直接回答")
         state["tool_calls"] = None
         state["final_answer"] = response.content
     
@@ -88,10 +88,10 @@ def execute_tools(state: AgentState, tools_map: dict) -> AgentState:
     tool_calls = state.get("tool_calls")
     
     if not tool_calls:
-        print("⏭️  无需执行工具")
+        print("无需执行工具")
         return state
     
-    print(f"\n🔧 执行工具...")
+    print("\n执行工具...")
     
     # 执行所有工具调用
     for tool_call in tool_calls:
@@ -105,7 +105,7 @@ def execute_tools(state: AgentState, tools_map: dict) -> AgentState:
             tool_result = tool.invoke(tool_args)
         else:
             tool_result = f"错误: 未找到工具 '{tool_name}'"
-            print(f"⚠️  {tool_result}")
+            print(tool_result)
         
         # 将工具结果添加到状态的消息历史
         state["messages"].append(
@@ -200,7 +200,7 @@ def run_agent(state: AgentState, llm_with_tools, tools_map: dict, max_iterations
         # 继续下一轮循环
     
     if iteration >= max_iterations:
-        print(f"⚠️  达到最大迭代次数 ({max_iterations})，强制结束")
+        print(f"达到最大迭代次数 ({max_iterations})，强制结束")
         if not state.get("final_answer"):
             state["final_answer"] = "抱歉，推理过程超时"
     

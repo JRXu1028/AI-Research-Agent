@@ -105,7 +105,7 @@ Supervisor Agent（调度者）
 
 ## 5. RAG 增强
 
-**现状**：基于 Chroma / pgvector 的语义检索，Top-K 返回，无重排序。
+**现状**：基于 Chroma 的语义检索，Top-K 返回，无重排序。
 
 **改进方向**：
 

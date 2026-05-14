@@ -1,10 +1,8 @@
 """
 RAG 模块
 实现检索增强生成
-支持 Chroma 和 PostgreSQL 两种向量数据库
+使用 Chroma 本地向量数据库
 """
-
-from .config import Config
 
 # 全局 RAG 系统实例
 _rag_system_instance = None
@@ -33,10 +31,10 @@ class RAGSystem:
         Returns:
             相关文档列表 [(doc, score), ...]
         """
-        print(f"   🔍 从知识库检索...")
+        print("   从知识库检索...")
         results = self.vector_store.search_with_score(query, k=k)
         
-        print(f"   📄 找到 {len(results)} 条相关文档")
+        print(f"   找到 {len(results)} 条相关文档")
         for i, (doc, score) in enumerate(results, 1):
             source = doc.metadata.get('source', 'Unknown')
             print(f"      [{i}] {source} (相似度: {score:.4f})")
@@ -47,7 +45,6 @@ class RAGSystem:
 def initialize_rag_system(force_reload=False):
     """
     初始化全局 RAG 系统
-    根据配置选择 Chroma 或 PostgreSQL
     
     Args:
         force_reload: 是否强制重新加载向量数据库
@@ -58,20 +55,14 @@ def initialize_rag_system(force_reload=False):
     global _rag_system_instance
     
     if _rag_system_instance is None or force_reload:
-        print("   📚 初始化知识库...")
-        
-        # 根据配置选择向量数据库类型
-        vector_store_type = Config.VECTOR_STORE_TYPE
-        print(f"   📦 使用向量数据库: {vector_store_type}")
-        
-        if vector_store_type == "postgres":
-            from .vector_store_pg import create_vector_store
-        else:
-            from .vector_store import create_vector_store
+        print("   初始化知识库...")
+        print("   使用向量数据库: chroma")
+
+        from .vector_store import create_vector_store
         
         vector_store = create_vector_store(force_reload=force_reload)
         _rag_system_instance = RAGSystem(vector_store)
-        print("   ✅ 知识库初始化完成")
+        print("   知识库初始化完成")
     
     return _rag_system_instance
 

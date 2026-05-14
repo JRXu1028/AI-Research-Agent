@@ -19,7 +19,7 @@ def calculator(a: float, b: float) -> float:
         两个数字的和
     """
     result = a + b
-    print(f"🔧 工具调用: calculator({a}, {b}) = {result}")
+    print(f"工具调用: calculator({a}, {b}) = {result}")
     return result
 
 
@@ -38,7 +38,7 @@ def knowledge_search(query: str) -> str:
     """
     from .rag import get_rag_system
     
-    print(f"🔧 工具调用: knowledge_search('{query}')")
+    print(f"工具调用: knowledge_search('{query}')")
     
     # 获取 RAG 系统实例
     rag_system = get_rag_system()

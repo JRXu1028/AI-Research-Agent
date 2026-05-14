@@ -1,0 +1,167 @@
+INFO:     Started server process [37868]
+INFO:     Waiting for application startup.
+D:\Project\idea\AI Research Agent\src\embeddings.py:21: LangChainDeprecationWarning: The class `HuggingFaceEmbeddings` was deprecated in LangChain 0.2.2 and will be removed in 1.0. An updated version of the class exists in the `langchain-huggingface package and should be used instead. To use it run `pip install -U `langchain-huggingface` and import as `from `langchain_huggingface import HuggingFaceEmbeddings``.
+  embeddings = HuggingFaceEmbeddings(
+'[WinError 10061] 由于目标计算机积极拒绝，无法连接。' thrown while requesting HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json
+Retrying in 1s [Retry 1/5].
+Traceback (most recent call last):
+  File "D:\Project\idea\AI Research Agent\app.py", line 49, in lifespan
+    initialize_rag_system(force_reload=False)
+  File "D:\Project\idea\AI Research Agent\src\rag.py", line 63, in initialize_rag_system
+    vector_store = create_vector_store(force_reload=force_reload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\vector_store.py", line 125, in create_vector_store
+    store = VectorStore()
+            ^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\vector_store.py", line 24, in __init__
+    self.embeddings = create_embeddings()
+                      ^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\embeddings.py", line 21, in create_embeddings
+    embeddings = HuggingFaceEmbeddings(
+                 ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\langchain_core\_api\deprecation.py", line 238, in warn_if_direct_instance
+    return wrapped(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\langchain_community\embeddings\huggingface.py", line 92, in __init__
+    self.client = sentence_transformers.SentenceTransformer(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\SentenceTransformer.py", line 327, in __init__
+    modules, self.module_kwargs = self._load_sbert_model(
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\SentenceTransformer.py", line 2323, in _load_sbert_model
+    module = module_class.load(
+             ^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 436, in load
+    return cls(model_name_or_path=model_name_or_path, **init_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 120, in __init__
+    config, is_peft_model = self._load_config(model_name_or_path, cache_dir, backend, config_args)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 171, in _load_config
+    find_adapter_config_file(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\peft_utils.py", line 84, in find_adapter_config_file
+    adapter_cached_filename = cached_file(
+                              ^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 277, in cached_file
+    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 508, in cached_files
+    raise e
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 420, in cached_files
+    hf_hub_download(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 986, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1119, in _hf_hub_download_to_cache_dir
+    _get_metadata_or_catch_error(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1653, in _get_metadata_or_catch_error
+    metadata = get_hf_file_metadata(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1576, in get_hf_file_metadata
+    response = _httpx_follow_relative_redirects_with_backoff(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 685, in _httpx_follow_relative_redirects_with_backoff
+    response = http_backoff(
+               ^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 559, in http_backoff
+    return next(
+           ^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 467, in _http_backoff_base
+    response = client.request(method=method, url=url, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\httpx\_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\httpx\_client.py", line 901, in send
+    raise RuntimeError("Cannot send a request, as the client has been closed.")
+RuntimeError: Cannot send a request, as the client has been closed.
+ERROR:    Traceback (most recent call last):
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\starlette\routing.py", line 638, in lifespan
+    async with self.lifespan_context(app) as maybe_state:
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\contextlib.py", line 210, in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\app.py", line 49, in lifespan
+    initialize_rag_system(force_reload=False)
+  File "D:\Project\idea\AI Research Agent\src\rag.py", line 63, in initialize_rag_system
+    vector_store = create_vector_store(force_reload=force_reload)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\vector_store.py", line 125, in create_vector_store
+    store = VectorStore()
+            ^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\vector_store.py", line 24, in __init__
+    self.embeddings = create_embeddings()
+                      ^^^^^^^^^^^^^^^^^^^
+  File "D:\Project\idea\AI Research Agent\src\embeddings.py", line 21, in create_embeddings
+    embeddings = HuggingFaceEmbeddings(
+                 ^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\langchain_core\_api\deprecation.py", line 238, in warn_if_direct_instance
+    return wrapped(self, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\langchain_community\embeddings\huggingface.py", line 92, in __init__
+    self.client = sentence_transformers.SentenceTransformer(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\SentenceTransformer.py", line 327, in __init__
+    modules, self.module_kwargs = self._load_sbert_model(
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\SentenceTransformer.py", line 2323, in _load_sbert_model
+    module = module_class.load(
+             ^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 436, in load
+    return cls(model_name_or_path=model_name_or_path, **init_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 120, in __init__
+    config, is_peft_model = self._load_config(model_name_or_path, cache_dir, backend, config_args)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\sentence_transformers\models\Transformer.py", line 171, in _load_config
+    find_adapter_config_file(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\peft_utils.py", line 84, in find_adapter_config_file
+    adapter_cached_filename = cached_file(
+                              ^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 277, in cached_file
+    file = cached_files(path_or_repo_id=path_or_repo_id, filenames=[filename], **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 508, in cached_files
+    raise e
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\transformers\utils\hub.py", line 420, in cached_files
+    hf_hub_download(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 986, in hf_hub_download
+    return _hf_hub_download_to_cache_dir(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1119, in _hf_hub_download_to_cache_dir
+    _get_metadata_or_catch_error(
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1653, in _get_metadata_or_catch_error
+    metadata = get_hf_file_metadata(
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_validators.py", line 89, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\file_download.py", line 1576, in get_hf_file_metadata
+    response = _httpx_follow_relative_redirects_with_backoff(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 685, in _httpx_follow_relative_redirects_with_backoff
+    response = http_backoff(
+               ^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 559, in http_backoff
+    return next(
+           ^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\huggingface_hub\utils\_http.py", line 467, in _http_backoff_base
+    response = client.request(method=method, url=url, **kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\httpx\_client.py", line 825, in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Software\Anaconda_envs\envs\AIResearch\Lib\site-packages\httpx\_client.py", line 901, in send
+    raise RuntimeError("Cannot send a request, as the client has been closed.")
+RuntimeError: Cannot send a request, as the client has been closed.
+
+ERROR:    Application startup failed. Exiting.

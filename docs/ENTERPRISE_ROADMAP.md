@@ -14,7 +14,7 @@
 | **模型后训练** | SFT 微调、DPO/RLHF 偏好对齐、RAFT 检索增强微调 |
 | **ML 基础设施** | 训练数据飞轮、评估框架、A/B 测试、模型版本管理 |
 | **系统设计** | 双引擎路由、反馈闭环、流式输出、多租户隔离 |
-| **全栈能力** | FastAPI + Vue 3 + PostgreSQL + Redis + Docker |
+| **全栈能力** | FastAPI + Vue 3 + vLLM + Chroma |
 
 同一个项目同时覆盖 **RAG 工程** 和 **模型微调**，这在简历中非常稀缺。
 
@@ -94,7 +94,7 @@ Slack 精华消息 ──┘                                  知识库索引
 | 文档解析 | Unstructured.io / LlamaParse | 支持 PDF/Word/HTML/Markdown |
 | 文本分块 | RecursiveCharacterTextSplitter + Semantic Chunking | 保证语义完整性 |
 | Embedding | BGE-M3 / text2vec-large-chinese | 中文效果更好，支持多语言 |
-| 向量库 | PostgreSQL + pgvector（已有） | 生产可用，与 Memory 共用 |
+| 向量库 | Chroma（当前实现） | 原型和本地实验优先 |
 
 ### 模块 2：混合检索 + 重排序（Hybrid Search + Reranker）
 

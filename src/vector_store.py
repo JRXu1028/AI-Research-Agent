@@ -33,14 +33,14 @@ class VectorStore:
         """
         # 检查是否已存在数据库
         if os.path.exists(self.persist_directory) and not force_reload:
-            print("      📂 加载已有向量数据库...")
+            print("      加载已有向量数据库...")
             self.vectorstore = Chroma(
                 persist_directory=self.persist_directory,
                 embedding_function=self.embeddings
             )
-            print(f"      ✅ 已加载 {self.vectorstore._collection.count()} 条文档")
+            print(f"      已加载 {self.vectorstore._collection.count()} 条文档")
         else:
-            print("      🔨 创建新的向量数据库...")
+            print("      创建新的向量数据库...")
             # 加载知识库数据
             knowledge_base = get_knowledge_base()
             
@@ -60,7 +60,7 @@ class VectorStore:
                 persist_directory=self.persist_directory
             )
             
-            print(f"      ✅ 已创建向量数据库，包含 {len(documents)} 条文档")
+            print(f"      已创建向量数据库，包含 {len(documents)} 条文档")
     
     def search(self, query: str, k: int = 3):
         """
@@ -109,7 +109,7 @@ class VectorStore:
             raise ValueError("向量数据库未初始化，请先调用 initialize()")
         
         self.vectorstore.add_documents(documents)
-        print(f"      ✅ 已添加 {len(documents)} 条新文档")
+        print(f"      已添加 {len(documents)} 条新文档")
 
 
 def create_vector_store(force_reload=False):
